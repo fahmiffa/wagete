@@ -27,7 +27,7 @@ class Index extends Component
 
     // Create Form Fields
     public string $template_pesan_id = '';
-    public string $contact_id = '';
+    public array $contact_ids = [];
     public string $waktu = '';
 
     // Edit Form Fields
@@ -111,22 +111,25 @@ class Index extends Component
     {
         $this->validate([
             'template_pesan_id' => ['required', 'exists:template_pesans,id'],
-            'contact_id' => ['required', 'exists:contacts,id'],
+            'contact_ids' => ['required', 'array', 'min:1'],
+            'contact_ids.*' => ['exists:contacts,id'],
             'waktu' => ['required', 'date', 'after:now'],
         ], [
             'template_pesan_id.required' => 'Template pesan wajib dipilih.',
-            'contact_id.required' => 'Kontak tujuan wajib dipilih.',
+            'contact_ids.required' => 'Kontak tujuan wajib dipilih minimal satu.',
             'waktu.required' => 'Waktu kirim wajib diisi.',
             'waktu.after' => 'Waktu kirim harus di masa depan.',
         ]);
 
-        MessageScheduler::create([
-            'user_id' => auth()->id(),
-            'template_pesan_id' => $this->template_pesan_id,
-            'contact_id' => $this->contact_id,
-            'waktu' => $this->waktu,
-            'status' => 'pending',
-        ]);
+        foreach ($this->contact_ids as $cid) {
+            MessageScheduler::create([
+                'user_id' => auth()->id(),
+                'template_pesan_id' => $this->template_pesan_id,
+                'contact_id' => $cid,
+                'waktu' => $this->waktu,
+                'status' => 'pending',
+            ]);
+        }
 
         $this->showCreateModal = false;
         $this->resetCreateForm();
@@ -219,10 +222,20 @@ class Index extends Component
         $this->delete_info = '';
     }
 
+    public function selectAllContacts(): void
+    {
+        $this->contact_ids = $this->contacts->pluck('id')->map(fn($id) => (string) $id)->toArray();
+    }
+
+    public function clearAllContacts(): void
+    {
+        $this->contact_ids = [];
+    }
+
     public function resetCreateForm(): void
     {
         $this->template_pesan_id = '';
-        $this->contact_id = '';
+        $this->contact_ids = [];
         $this->waktu = '';
     }
 

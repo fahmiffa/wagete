@@ -1,4 +1,4 @@
-<div>
+<div wire:poll.5s>
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -250,19 +250,99 @@
                                 @error('template_pesan_id') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- Contact -->
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Kontak Tujuan <span class="text-red-500">*</span>
-                                </label>
-                                <select wire:model="contact_id"
-                                        class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-100 focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">-- Pilih Kontak --</option>
-                                    @foreach ($this->contacts as $ct)
-                                        <option value="{{ $ct->id }}">{{ $ct->nama }} ({{ $ct->phone }})</option>
-                                    @endforeach
-                                </select>
-                                @error('contact_id') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                            <!-- Contact Selection with Alpine.js -->
+                            <div x-data="{
+                                search: '',
+                                contacts: @js($this->contacts),
+                                selectedIds: @entangle('contact_ids'),
+                                get filteredContacts() {
+                                    if (this.search === '') return this.contacts;
+                                    return this.contacts.filter(c => 
+                                        c.nama.toLowerCase().includes(this.search.toLowerCase()) || 
+                                        c.phone.includes(this.search)
+                                    );
+                                },
+                                get selectedContacts() {
+                                    return this.contacts.filter(c => this.selectedIds.includes(String(c.id)) || this.selectedIds.includes(c.id));
+                                },
+                                toggleSelection(id) {
+                                    id = String(id);
+                                    if (this.selectedIds.includes(id)) {
+                                        this.selectedIds = this.selectedIds.filter(i => i !== id);
+                                    } else {
+                                        this.selectedIds.push(id);
+                                    }
+                                },
+                                selectAllFiltered() {
+                                    let ids = this.filteredContacts.map(c => String(c.id));
+                                    // Add to selectedIds without duplicates
+                                    let current = new Set(this.selectedIds);
+                                    ids.forEach(id => current.add(id));
+                                    this.selectedIds = Array.from(current);
+                                },
+                                clearAll() {
+                                    this.selectedIds = [];
+                                }
+                            }">
+                                <div class="flex justify-between items-end mb-2">
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Kontak Tujuan <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="flex gap-3 text-[10px] font-medium">
+                                        <button type="button" @click="selectAllFiltered" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition flex items-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            Pilih Semua (Filter)
+                                        </button>
+                                        <span class="text-gray-300 dark:text-gray-600">|</span>
+                                        <button type="button" @click="clearAll" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition flex items-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            Hapus Semua
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Selected Contacts Badges -->
+                                <div class="mb-3 p-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg min-h-[42px] max-h-32 overflow-y-auto flex flex-wrap gap-2">
+                                    <template x-if="selectedContacts.length === 0">
+                                        <span class="text-xs text-gray-400 dark:text-gray-500 my-auto ml-1 italic">Belum ada kontak terpilih...</span>
+                                    </template>
+                                    <template x-for="contact in selectedContacts" :key="contact.id">
+                                        <div class="inline-flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md text-xs shadow-sm">
+                                            <span class="font-medium text-gray-700 dark:text-gray-300" x-text="contact.nama"></span>
+                                            <button type="button" @click="toggleSelection(contact.id)" class="text-gray-400 hover:text-red-500 ml-1 outline-none">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Search Input -->
+                                <div class="relative mb-2">
+                                    <input type="text" x-model="search" placeholder="Cari nama atau nomor kontak..." class="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:border-indigo-500 focus:ring-indigo-500">
+                                    <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    </div>
+                                </div>
+
+                                <!-- Contact List -->
+                                <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-y-auto max-h-48 bg-white dark:bg-gray-900">
+                                    <template x-if="filteredContacts.length === 0">
+                                        <div class="p-4 text-center text-xs text-gray-500">Kontak tidak ditemukan.</div>
+                                    </template>
+                                    <template x-for="contact in filteredContacts" :key="contact.id">
+                                        <label class="flex items-center px-3 py-2 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition">
+                                            <input type="checkbox" 
+                                                   :value="String(contact.id)" 
+                                                   x-model="selectedIds" 
+                                                   class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:ring-offset-gray-900 dark:border-gray-600">
+                                            <div class="ml-3 flex flex-col">
+                                                <span class="text-sm font-medium text-gray-800 dark:text-gray-200" x-text="contact.nama"></span>
+                                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="contact.phone"></span>
+                                            </div>
+                                        </label>
+                                    </template>
+                                </div>
+                                @error('contact_ids') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
                             </div>
 
                             <!-- Waktu -->
