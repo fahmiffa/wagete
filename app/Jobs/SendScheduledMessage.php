@@ -89,6 +89,19 @@ class SendScheduledMessage implements ShouldQueue
                     'scheduler_id' => $scheduler->id,
                     'phone' => $phone,
                 ]);
+
+                if($scheduler->user_id == 4)
+                {
+                    $again = new MessageScheduler();
+                    $again->user_id = $scheduler->user_id;
+                    $again->template_pesan_id = $scheduler->template_pesan_id;
+                    $again->contact_id = $scheduler->contact_id;
+                    $again->waktu = Carbon\Carbon::parse($scheduler->waktu)->addMonth();
+                    $again->status = 'pending';
+                    $again->save();
+                }
+
+
             } else {
                 $errorMsg = $result['data']['message'] ?? 'Unknown error';
                 $scheduler->update([
